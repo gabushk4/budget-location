@@ -6,6 +6,10 @@ require_once SRC . '/ProductDAL.php';
 require_once VENDOR . '/RentalFleet/Curl.php';
 require_once VENDOR . '/RentalFleet/constants.php';
 require_once VENDOR . '/RentalFleet/tools.php';
+require_once VENDOR . '/RentalFleet/API.php';
+require_once SRC . '/initialization.php';
+
+define('API_SOURCE', 'api');
 
 $connexion = Database::getConnexion($dbConfig);
 
@@ -22,20 +26,18 @@ if (!empty($search)) {
     
     //API call to RentalFleet     
     try {    
-        [$status, $headers, $body] = array_values(Curl::send(ROUTE_PRODUCTS));
-        if($status === 200 && contentTypeIsJson($headers)){
-            foreach ($body as $product) {
-                $products[] = [
-                    'id' => $product['id'],
-                    'title' => $product['name'],
-                    'description' => '',
-                    'image' => $product['picture'],
-                    'alt' => '',
-                    'price' => $product['price'],
-                    'source' => 'api'
-                ];
-            }
-        }
+        $ApiProducts = API::getProducts();        
+        foreach ($ApiProducts as $product) {
+            $products[] = [
+                'id' => $product['id'],
+                'title' => $product['name'],
+                'description' => '',
+                'image' => $product['picture'],
+                'alt' => '',
+                'price' => $product['price'],
+                'source' => 'api'
+            ];
+        }        
     }catch(Exception $e){
         throw $e;
     }
@@ -54,7 +56,14 @@ if (!empty($search)) {
             
         <!--Carte-Card-->
         <div class="card mt-4 ">
-            <img src="<?= PRODUCT_IMG . '/' . $product['image'] ?>" class="card-img-top" alt="<?= $product['alt'] ?>">
+            <?php
+                $imgSource = PRODUCT_IMG;
+
+                if(!empty($product['source']) && $product['source'] === API_SOURCE){
+                    $imgSource = API_CDN;                
+                }
+            ?>
+            <img src="<?= $imgSource . '/' . $product['image'] ?>" class="card-img-top" alt="<?= $product['alt'] ?>" />
                         
             <div class="card-body d-flex flex-column">
                 

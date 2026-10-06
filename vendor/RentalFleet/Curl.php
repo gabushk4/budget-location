@@ -1,11 +1,19 @@
 <?php
-include_once 'exceptions.php';
-require_once 'constants.php';
-require_once 'tools.php';
+
+require_once VENDOR . '/RentalFleet/exceptions.php';
+require_once VENDOR . '/RentalFleet/constants.php';
+require_once VENDOR . '/RentalFleet/tools.php';
 
 class Curl {
 
-    public static function send($url){
+    public static function send(
+        string $method, 
+        string $route, 
+        array $headers = [], 
+        array $data = [],
+        int $connectTimeout = 3,
+        int $timeout = 5
+    ){
 
         // Initialisation de l'objet cURL
         $ch = curl_init();
@@ -46,33 +54,58 @@ class Curl {
 
         // Code qu'on voudra modifier : en-têtes de requête
         $requestHeaders = [
-            createHeader('Accept', ['application/json', 'text/plain']),
-            createHeader('Content-Type', ['application/json'])
+            // 'accept: application/json, text/plain'
+            // HTTP_HEADER_ACCEPT . ': ' . CONTENT_TYPE_APPLICATION_JSON . ', ' . CONTENT_TYPE_TEXT_PLAIN
+            createHeader(HTTP_HEADER_ACCEPT, CONTENT_TYPE_APPLICATION_JSON, CONTENT_TYPE_TEXT_PLAIN )
         ];
         //===========================
         
-
         curl_setopt($ch, CURLOPT_HEADER, false); // Do not include headers in output repsonse
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
+
+        // array_merge : les données du 2e tableau écrasent celles du 1er tableau
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($requestHeaders, $headers));
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Returns the response as a string instead of echoing it
         
 
-        // Code qu'on voudra modifier : Méthode et URL
-        curl_setopt($ch, CURLOPT_HTTPGET, true); // HTTP default Method        
-        curl_setopt($ch, CURLOPT_URL, $url);
+        // Définir Méthode
+        switch($method) {
+
+            // GET
+            case HTTP_METHOD_GET:
+
+                curl_setopt($ch, CURLOPT_HTTPGET, true); // HTTP default Method     
+                break;
+
+            // POST
+            case HTTP_METHOD_POST:
+                break;
+            // PUT
+            case HTTP_METHOD_PUT:          
+                break;
+            // PATCH
+            case HTTP_METHOD_PATCH:
+                break;
+            // DELETE
+            case HTTP_METHOD_DELETE:
+                break;  
+        }
+
+        // Définir route/URL
+        curl_setopt($ch, CURLOPT_URL, $route);
+
         //===========================
 
-
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3); // 3 seconds to connect
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);        // 5 seconds total max execution
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $connectTimeout); // 3 seconds to connect
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);        // 5 seconds total max execution
 
         $response = curl_exec($ch);
 
         $errno = curl_errno($ch);
         $error = curl_error($ch);
-
         
-        // Traite une erreur de connexion et lance l'exception appropriée
+        // Traite une erreur de communication et lance l'exception appropriée
+        // Est-ce que notre client réussi à parler à l'API ?
         if ($response === false) {
 
             if ($errno === CURLE_OPERATION_TIMEDOUT) {
@@ -94,13 +127,14 @@ class Curl {
                 }
             } else {
 
-                throw new ApiUnavailableException($error);
+                throw new ApiUnavailableException($errno);
 
             }
         }
-
-
+        
+        // Nous avons réussi à parler à l'API
         // Nous avons eu une réponse, on retourne les informations
+        
         // Code status HTTP
         // Tableau associatif des en-têtes de la réponse
         // Tableau associatif des données du corps du message de réponse
